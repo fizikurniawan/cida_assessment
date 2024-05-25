@@ -1,7 +1,12 @@
+import logger from "../../logger.js";
 import Conversation from "../../models/conversation.js";
 import { chatCompletion } from "../../providers/groqapi.js";
+import { handleConversation } from "../../utils/conversation.js";
 
 const consultCommand = (bot) => {
+  // make chainlang with LLM
+  const state = {};
+
   bot.on("message", async (msg) => {
     if (msg.text.toString().toLowerCase().startsWith("/start")) {
       return;
@@ -10,26 +15,13 @@ const consultCommand = (bot) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    // connect to LLM
-    const response = await chatCompletion(msg.text);
+    const { response: llmResponse, currentState: currentState } =
+      await handleConversation(msg.text, userId, state[userId], "telegram");
 
-    // Save the message to the database
-    const chatMessage = new Conversation({
-      user_id: userId,
-      message: msg.text,
-      response: response,
-      provider: "telegram",
-    });
+    state[userId] = currentState;
 
     try {
-      await chatMessage.save();
-      console.log("Chat message saved successfully");
-    } catch (error) {
-      console.error("Error saving chat message:", error);
-    }
-
-    try {
-      bot.sendMessage(chatId, response);
+      bot.sendMessage(chatId, llmResponse);
     } catch (error) {
       console.log("Error sending message:  ", error);
     }

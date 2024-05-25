@@ -7,8 +7,8 @@ const COMPLETION_URL = GROQ_AI_BASE_URL + "openai/v1/chat/completions";
 
 export const chatCompletion = async (message) => {
   const body = {
-    // model: "llama3-8b-8192",
-    model: "gemma-7b-it",
+    model: "llama3-8b-8192",
+    // model: "gemma-7b-it",
     messages: [
       {
         role: "system",

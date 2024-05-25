@@ -1,12 +1,18 @@
 import { WELCOME_MESSAGE } from "../../utils/constants.js";
 import { chatCompletion } from "../../providers/groqapi.js";
 import Conversation from "../../models/conversation.js";
+import { handleConversation } from "../../utils/conversation.js";
 
 const consultCommand = (bot) => {
+  const state = {};
   bot.on("messageCreate", async (msg) => {
     const isAuthorBot = msg.author.bot;
     const isMentioned = msg.mentions.has(bot.user);
     const messageContent = msg.content;
+    const messageContentClear = messageContent.replace(
+      `<@${process.env.DISCORD_APP_ID}>`,
+      ""
+    );
     const isContentEmpty =
       messageContent === `<@${process.env.DISCORD_APP_ID}>` ? true : false;
     const userId = msg.author.id;
@@ -23,30 +29,18 @@ const consultCommand = (bot) => {
       return;
     }
 
-    // connect to LLM
-    const question = messageContent.replace(
-      `<@${process.env.DISCORD_APP_ID}>`,
-      ""
-    );
-    const response = await chatCompletion(question);
+    const { response: llmResponse, currentState: currentState } =
+      await handleConversation(
+        messageContentClear,
+        userId,
+        state[userId],
+        "discord"
+      );
 
-    // Save the message to the database
-    const chatMessage = new Conversation({
-      user_id: userId,
-      message: messageContent,
-      response: response,
-      provider: "discord",
-    });
+    state[userId] = currentState;
 
     try {
-      await chatMessage.save();
-      console.log("Chat message saved successfully");
-    } catch (error) {
-      console.error("Error saving chat message:", error);
-    }
-
-    try {
-      msg.reply(response);
+      msg.reply(llmResponse);
     } catch (error) {
       console.log("Error sending message:  ", error);
     }
